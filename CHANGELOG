@@ -1,3 +1,5 @@
+(branch for debugging issues with Travis and live tests on Heroku)
+
 v1.2
 New methods:
 -- API is now the main API class, contains both Graph and REST methods
