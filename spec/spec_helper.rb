@@ -26,6 +26,7 @@ require 'koala'
 
 # ensure consistent to_json behavior
 # this must be required first so mock_http_service loads the YAML as expected
+require 'support/ordered_hash' 
 require 'support/json_testing_fix' 
 
 # set up our testing environment
