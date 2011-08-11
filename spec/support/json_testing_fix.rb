@@ -18,32 +18,21 @@ module MultiJson
 
     alias_method :encode_original, :encode
     alias_method :encode, :encode_with_ordering
-  end
-  
-  def decode_with_ordering(string)
-    object = decode_original(string)
-    puts "Object: #{object.inspect}"
-    new_object = sort_object(object)
-    puts "New object: #{new_object.inspect}"
-    new_object
-  end
 
-  alias_method :decode_original, :decode
-  alias_method :decode, :decode_with_ordering
-    
-  private 
-  
-  def self.sort_object(object)
-    if object.is_a?(Hash)
-      sort_hash(object)
-    elsif object.is_a?(Array)
-      object.collect {|item| item.is_a?(Hash) ? sort_hash(item) : item}
-    else
-      object
+    private 
+
+    def sort_object(object)
+      if object.is_a?(Hash)
+        sort_hash(object)
+      elsif object.is_a?(Array)
+        object.collect {|item| item.is_a?(Hash) ? sort_hash(item) : item}
+      else
+        object
+      end
     end
-  end
-  
-  def self.sort_hash(unsorted_hash)
-    unsorted_hash.keys.sort {|a, b| a.to_s <=> b.to_s}.inject({}) {|hash, k| hash[k] = unsorted_hash[k]; hash}
+
+    def sort_hash(unsorted_hash)
+      unsorted_hash.keys.sort {|a, b| a.to_s <=> b.to_s}.inject({}) {|hash, k| hash[k] = unsorted_hash[k]; hash}
+    end
   end
 end
