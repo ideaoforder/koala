@@ -19,7 +19,7 @@ end
 # for these troubled versions.
 #
 # See https://github.com/tenderlove/psych/issues/8 for more details
-YAML::ENGINE.yamler = 'syck'# if RUBY_VERSION == '1.9.2' && RUBY_PATCHLEVEL < 290
+YAML::ENGINE.yamler = 'syck' if RUBY_VERSION == '1.9.2' && RUBY_PATCHLEVEL < 290
 
 # load the library
 require 'koala'
