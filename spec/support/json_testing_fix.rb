@@ -7,23 +7,16 @@ module MultiJson
   class << self
     def encode_with_ordering(object)
       # if it's a hash, recreate it with k/v pairs inserted in sorted-by-key order
-      # (for some reason, REE 1.8.7 fails if we don't assign the ternary result as a local variable
+      # (for some reason, REE fails if we don't assign the ternary result as a local variable
       # separately from calling encode_original)
-      #puts "Object: #{object.inspect}"
-      new_object = sort_object(object)
-      #puts "New object: #{new_object.inspect}"
-      encode_original(new_object)
+      encode_original(sort_object(object))
     end
 
     alias_method :encode_original, :encode
     alias_method :encode, :encode_with_ordering
   
     def decode_with_ordering(string)
-      object = decode_original(string)
-      #puts "Object: #{object.inspect}"
-      new_object = sort_object(object)
-      #puts "New object: #{new_object.inspect}"
-      new_object
+      sort_object(decode_original(string))
     end
 
     alias_method :decode_original, :decode

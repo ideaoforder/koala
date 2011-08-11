@@ -102,11 +102,9 @@ graph_api:
         with_token: '[{"body":"[{\"first_name\":\"Alex\"}]"}]'
 
     # dependencies
-    <% puts MultiJson.encode([{"method"=>"get", "relative_url"=>"me", "name" => "getme"}, {"method"=>"get", "relative_url"=>"koppel", "depends_on" => "getme"}]) %>
     batch=<%= MultiJson.encode([{"method"=>"get", "relative_url"=>"me", "name" => "getme"}, {"method"=>"get", "relative_url"=>"koppel", "depends_on" => "getme"}]) %>:
       post:
         with_token: '[null,{"body":"{\"id\":\"123\"}"}]'
-    <% puts MultiJson.encode([{"method"=>"get", "relative_url"=>"#{OAUTH_DATA["app_id"]}/insights", "name" => "getdata"}, {"method"=>"get", "relative_url"=>"koppel", "depends_on" => "getdata"}]) %>
     batch=<%= MultiJson.encode([{"method"=>"get", "relative_url"=>"#{OAUTH_DATA["app_id"]}/insights", "name" => "getdata"}, {"method"=>"get", "relative_url"=>"koppel", "depends_on" => "getdata"}]) %>:
       post:
         with_token: '[{"body": "{\"error\":{\"type\":\"AnError\", \"message\":\"An error occurred!.\"}}"},null]'
