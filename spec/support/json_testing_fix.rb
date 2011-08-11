@@ -9,6 +9,7 @@ module MultiJson
     # if it's a hash, recreate it with k/v pairs inserted in sorted-by-key order
     # (for some reason, REE 1.8.7 fails if we don't assign the ternary result as a local variable
     # separately from calling encode_original)
+    puts "Object: #{object.inspect}"
     new_object = if object.is_a?(Hash)
       sort_hash(object)
     elsif object.is_a?(Array)
@@ -16,6 +17,7 @@ module MultiJson
     else
       object
     end
+    puts "New object: #{new_object.inspect}"
     encode_original(new_object)
   end
 
