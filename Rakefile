@@ -7,9 +7,6 @@ rescue LoadError
   puts 'although not required, bundler is recommened for running the tests'
 end
 
-# load the library
-require 'koala'
-
 task :default => :spec
 
 require 'rspec/core/rake_task'
