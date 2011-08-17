@@ -1,15 +1,18 @@
 require 'spec_helper'
 
-
 describe "Koala::HTTPService" do
   it "has a faraday_middleware accessor" do
     Koala::HTTPService.methods.map(&:to_sym).should include(:faraday_middleware)
     Koala::HTTPService.methods.map(&:to_sym).should include(:faraday_middleware=)
   end
 
-  it "has an faraday_options accessor" do
-    Koala::HTTPService.should respond_to(:faraday_options)
-    Koala::HTTPService.should respond_to(:faraday_options=)
+  it "has an http_options accessor" do
+    Koala::HTTPService.should respond_to(:http_options)
+    Koala::HTTPService.should respond_to(:http_options=)
+  end
+  
+  it "sets http_options to {} by default" do
+    Koala::HTTPService.http_options.should == {}
   end
 
   describe "DEFAULT_MIDDLEWARE" do
@@ -152,9 +155,9 @@ describe "Koala::HTTPService" do
         Koala::HTTPService.make_request("anything", {}, "anything")
       end
 
-      it "merges Koala::HTTPService.faraday_options into the request params" do
+      it "merges Koala::HTTPService.http_options into the request params" do
         http_options = {:a => 2, :c => "3"}
-        Koala::HTTPService.faraday_options = http_options
+        Koala::HTTPService.http_options = http_options
         Faraday.should_receive(:new).with(anything, hash_including(http_options)).and_return(@mock_connection)
         Koala::HTTPService.make_request("anything", {}, "get")
       end
@@ -165,13 +168,28 @@ describe "Koala::HTTPService" do
         Koala::HTTPService.make_request("anything", {}, "get", options)
       end
 
-      it "overrides Koala::HTTPService.faraday_options with any provided options for the request params" do
+      it "overrides Koala::HTTPService.http_options with any provided options for the request params" do
         options = {:a => 2, :c => "3"}
         http_options = {:a => :a}
         Koala::HTTPService.stub(:http_options).and_return(http_options)
 
         Faraday.should_receive(:new).with(anything, hash_including(http_options.merge(options))).and_return(@mock_connection)
         Koala::HTTPService.make_request("anything", {}, "get", options)
+      end
+      
+      it "forces use_ssl to true if an access token is present" do
+        options = {:use_ssl => false}
+        Koala::HTTPService.stub(:http_options).and_return(:use_ssl => false)
+        Faraday.should_receive(:new).with(anything, hash_including(:use_ssl => true)).and_return(@mock_connection)
+        Koala::HTTPService.make_request("anything", {"access_token" => "foo"}, "get", options)
+      end
+      
+      it "calls server with the composite options" do
+        options = {:a => 2, :c => "3"}
+        http_options = {:a => :a}
+        Koala::HTTPService.stub(:http_options).and_return(http_options)
+        Koala::HTTPService.should_receive(:server).with(hash_including(http_options.merge(options))).and_return("foo")
+        Koala::HTTPService.make_request("anything", {}, "get", options)        
       end
 
       it "uses the default builder block if HTTPService.faraday_middleware block is not defined" do
@@ -235,6 +253,167 @@ describe "Koala::HTTPService" do
         u.stub(:to_upload_io).and_return(upload_io)
         @mock_connection.should_receive(:post).with(anything, hash_including("source" => upload_io)).and_return(@mock_http_response)
         Koala::HTTPService.make_request("anything", {:source => u}, "post")
+      end
+    end
+  end
+
+  describe "deprecated options" do
+    before :each do
+      Koala::HTTPService.stub(:http_options).and_return({})
+    end
+    
+    {
+      :timeout => :timeout,
+      :always_use_ssl => :use_ssl,
+      :proxy => :proxy 
+    }.each_pair do |deprecated_method, parameter|
+      describe "##{deprecated_method}" do
+        context "read" do
+          it "reads http_options[:#{parameter}]" do
+            value = "foo"
+            Koala::HTTPService.http_options[parameter] = value
+            Koala::HTTPService.send(deprecated_method).should == value
+          end
+      
+          it "generates a deprecation warning" do
+            Koala::Utils.should_receive(:deprecate)
+            Koala::HTTPService.send(deprecated_method)
+          end
+        end
+      
+        context "write" do
+          it "writes to http_options[:#{parameter}]" do
+            Koala::HTTPService.http_options[parameter] = nil
+            value = "foo"
+            Koala::HTTPService.send(:"#{deprecated_method}=", value)
+            Koala::HTTPService.http_options[parameter].should == value
+          end
+      
+          it "generates a deprecation warning" do
+            Koala::Utils.should_receive(:deprecate)
+            Koala::HTTPService.send(:"#{deprecated_method}=", 2)
+          end
+        end
+      end
+    end
+    
+    # ssl options
+    [:ca_path, :ca_file, :verify_mode].each do |deprecated_method|
+      describe "##{deprecated_method}" do
+        context "read" do
+          it "reads http_options[:ssl][:#{deprecated_method}] if http_options[:ssl]" do
+            value = "foo"
+            Koala::HTTPService.http_options[:ssl] = {deprecated_method => value}
+            Koala::HTTPService.send(deprecated_method).should == value
+          end
+      
+          it "returns nil if http_options[:ssl] is not defined" do
+            Koala::HTTPService.send(deprecated_method).should be_nil
+          end
+
+          it "generates a deprecation warning" do
+            Koala::Utils.should_receive(:deprecate)
+            Koala::HTTPService.send(deprecated_method)
+          end
+        end
+      
+        context "write" do      
+          it "defines http_options[:ssl] if not defined" do
+            Koala::HTTPService.http_options[:ssl] = nil
+            value = "foo"
+            Koala::HTTPService.send(:"#{deprecated_method}=", value)
+            Koala::HTTPService.http_options[:ssl].should
+          end
+
+          it "writes to http_options[:ssl][:#{deprecated_method}]" do
+            value = "foo"
+            Koala::HTTPService.send(:"#{deprecated_method}=", value)
+            Koala::HTTPService.http_options[:ssl].should
+            Koala::HTTPService.http_options[:ssl][deprecated_method].should == value
+          end
+          
+          it "does not redefine http_options[:ssl] if already defined" do
+            hash = {:a => 2}
+            Koala::HTTPService.http_options[:ssl] = hash
+            Koala::HTTPService.send(:"#{deprecated_method}=", 3)
+            Koala::HTTPService.http_options[:ssl].should include(hash)
+          end
+                
+          it "generates a deprecation warning" do
+            Koala::Utils.should_receive(:deprecate)
+            Koala::HTTPService.send(:"#{deprecated_method}=", 2)
+          end
+        end
+      end
+    end
+    
+    describe "per-request options" do
+      before :each do
+        # Setup stubs for make_request to execute without exceptions
+        @mock_body = stub('Typhoeus response body')
+        @mock_headers_hash = stub({:value => "headers hash"})
+        @mock_http_response = stub("Faraday Response", :status => 200, :headers => @mock_headers_hash, :body => @mock_body)
+
+        @mock_connection = stub("Faraday connection")
+        @mock_connection.stub(:get).and_return(@mock_http_response)
+        @mock_connection.stub(:post).and_return(@mock_http_response)
+        Faraday.stub(:new).and_return(@mock_connection)
+      end
+      
+      describe ":typhoeus_options" do
+        it "merges any typhoeus_options into options" do
+          typhoeus_options = {:a => 2}
+          Faraday.should_receive(:new).with(anything, hash_including(typhoeus_options)).and_return(@mock_connection)
+          Koala::HTTPService.make_request("anything", {}, "get", :typhoeus_options => typhoeus_options)          
+        end
+        
+        it "deletes the typhoeus_options key" do
+          typhoeus_options = {:a => 2}
+          Faraday.should_receive(:new).with(anything, hash_not_including(:typhoeus_options => typhoeus_options)).and_return(@mock_connection)
+          Koala::HTTPService.make_request("anything", {}, "get", :typhoeus_options => typhoeus_options)          
+        end
+      end
+
+      describe ":ca_path" do
+        it "sets any ca_path into options[:ssl]" do
+          ca_path = :foo
+          Faraday.should_receive(:new).with(anything, hash_including(:ssl => hash_including(:ca_path => ca_path))).and_return(@mock_connection)
+          Koala::HTTPService.make_request("anything", {}, "get", :ca_path => ca_path)
+        end
+
+        it "deletes the ca_path key" do
+          ca_path = :foo
+          Faraday.should_receive(:new).with(anything, hash_not_including(:ca_path => ca_path)).and_return(@mock_connection)
+          Koala::HTTPService.make_request("anything", {}, "get", :ca_path => ca_path)
+        end
+      end
+      
+      describe ":ca_file" do
+        it "sets any ca_file into options[:ssl]" do
+          ca_file = :foo
+          Faraday.should_receive(:new).with(anything, hash_including(:ssl => hash_including(:ca_file => ca_file))).and_return(@mock_connection)
+          Koala::HTTPService.make_request("anything", {}, "get", :ca_file => ca_file)
+        end
+
+        it "deletes the ca_file key" do
+          ca_file = :foo
+          Faraday.should_receive(:new).with(anything, hash_not_including(:ca_file => ca_file)).and_return(@mock_connection)
+          Koala::HTTPService.make_request("anything", {}, "get", :ca_file => ca_file)
+        end
+      end
+      
+      describe ":verify_mode" do
+        it "sets any verify_mode into options[:ssl]" do
+          verify_mode = :foo
+          Faraday.should_receive(:new).with(anything, hash_including(:ssl => hash_including(:verify_mode => verify_mode))).and_return(@mock_connection)
+          Koala::HTTPService.make_request("anything", {}, "get", :verify_mode => verify_mode)
+        end
+
+        it "deletes the verify_mode key" do
+          verify_mode = :foo
+          Faraday.should_receive(:new).with(anything, hash_not_including(:verify_mode => verify_mode)).and_return(@mock_connection)
+          Koala::HTTPService.make_request("anything", {}, "get", :verify_mode => verify_mode)
+        end
       end
     end
   end
