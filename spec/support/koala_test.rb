@@ -98,7 +98,9 @@ module KoalaTest
     # create two test users with specific names and befriend them
     @live_testing_user = @test_user_api.create(true, testing_permissions, :name => user1_name)
     @live_testing_friend = @test_user_api.create(true, testing_permissions, :name => user2_name)
-    
+    puts "Test user 2: #{@live_testing_user.inspect}"
+    puts "Test user 2: #{@live_testing_friend.inspect}"
+    puts "Test user 1 authorized: #{Koala::Facebook::API.new(@live_testing_friend["access_token"]).get_object("me").inspect}"
     @test_user_api.befriend(@live_testing_user, @live_testing_friend)
     self.oauth_token = @live_testing_user["access_token"]
 
